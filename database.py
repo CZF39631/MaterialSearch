@@ -35,7 +35,30 @@ def get_image_count(session: Session):
     return session.query(Image).count()
 
 
-def delete_image_if_outdated(session: Session, path: str, modify_time: datetime.datetime, checksum: str = None) -> bool:
+def get_all_image_records(session: Session) -> dict[str, tuple[datetime.datetime | None, str | None]]:
+    """
+    一次性加载所有图片记录到内存字典，用于批量比对
+    :return: dict, {path: (modify_time, checksum)}
+    """
+    records = session.query(Image.path, Image.modify_time, Image.checksum).all()
+    return {path: (modify_time, checksum) for path, modify_time, checksum in records}
+
+
+def get_all_video_records(session: Session) -> dict[str, tuple[datetime.datetime | None, str | None]]:
+    """
+    一次性加载所有视频记录到内存字典（按path去重），用于批量比对
+    :return: dict, {path: (modify_time, checksum)}
+    """
+    records = session.query(Video.path, Video.modify_time, Video.checksum).distinct().all()
+    return {path: (modify_time, checksum) for path, modify_time, checksum in records}
+
+
+def delete_image_if_outdated(
+    session: Session,
+    path: str,
+    modify_time: datetime.datetime | None,
+    checksum: str | None = None,
+) -> bool:
     """
     判断图片是否修改，若修改则删除
     :param session: Session, 数据库 session
@@ -62,7 +85,12 @@ def delete_image_if_outdated(session: Session, path: str, modify_time: datetime.
     return False
 
 
-def delete_video_if_outdated(session: Session, path: str, modify_time: datetime.datetime, checksum: str = None) -> bool:
+def delete_video_if_outdated(
+    session: Session,
+    path: str,
+    modify_time: datetime.datetime | None,
+    checksum: str | None = None,
+) -> bool:
     """
     判断视频是否修改，若修改则删除
     :param session: Session, 数据库 session
@@ -89,7 +117,7 @@ def delete_video_if_outdated(session: Session, path: str, modify_time: datetime.
     return False
 
 
-def get_video_paths(session: Session, filter_path: str = None, start_time: int = None, end_time: int = None):
+def get_video_paths(session: Session, filter_path: str | None = None, start_time: int | None = None, end_time: int | None = None):
     """获取所有视频的路径，支持通过路径和修改时间筛选"""
     query = session.query(Video.path, Video.modify_time).distinct()
     if filter_path:
@@ -143,7 +171,7 @@ def add_image(session: Session, path: str, modify_time: datetime.datetime, check
     session.commit()
 
 
-def batch_add_images(session: Session, image_data_list: list):
+def batch_add_images(session: Session, image_data_list: list[tuple[str, datetime.datetime | None, str | None, bytes]]):
     """
     批量添加图片到数据库
     :param session: Session, 数据库session
@@ -160,7 +188,13 @@ def batch_add_images(session: Session, image_data_list: list):
     session.commit()
 
 
-def add_video(session: Session, path: str, modify_time: datetime.datetime, checksum: str, frame_time_features_generator):
+def add_video(
+    session: Session,
+    path: str,
+    modify_time: datetime.datetime | None,
+    checksum: str | None,
+    frame_time_features_generator,
+):
     """
     将处理后的视频数据入库
     :param session: Session, 数据库session
@@ -192,7 +226,7 @@ def add_pexels_video(session: Session, content_loc: str, duration: int, view_cou
     session.commit()
 
 
-def delete_record_if_not_exist(session: Session, assets: set):
+def delete_record_if_not_exist(session: Session, assets: set[str]):
     """
     删除不存在于 assets 集合中的图片 / 视频的数据库记录
     """

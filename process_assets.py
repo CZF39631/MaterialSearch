@@ -96,17 +96,23 @@ def process_images(path_list, ignore_small_images=True):
     :param ignore_small_images: bool, 是否忽略尺寸过小的图片
     :return: <class 'numpy.nparray'>, 图片特征
     """
-    images = []
-    for path in path_list.copy():
-        image = get_image_data(path, ignore_small_images)
-        if image is None:
-            path_list.remove(path)
-            continue
-        images.append(image)
-    if not images:
+    # 并行加载图片数据（IO + PIL 释放 GIL，多线程有效）
+    from concurrent.futures import ThreadPoolExecutor
+    images = {}
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(get_image_data, path, ignore_small_images): path for path in path_list}
+        for future in futures:
+            path = futures[future]
+            result = future.result()
+            if result is not None:
+                images[path] = result
+    # 按原始顺序收集有效结果
+    valid_paths = [p for p in path_list if p in images]
+    valid_images = [images[p] for p in valid_paths]
+    if not valid_images:
         return None, None
-    feature = get_image_feature(images)
-    return path_list, feature
+    feature = get_image_feature(valid_images)
+    return valid_paths, feature
 
 
 def process_web_image(url):
@@ -240,6 +246,7 @@ def match_batch(
         positive_scores = np.ones(len(image_features))
     else:
         positive_scores = image_features @ positive_feature.T
+    negative_scores = None
     if negative_feature is not None:
         negative_scores = image_features @ negative_feature.T
     # 根据阈值进行过滤
