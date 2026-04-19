@@ -245,9 +245,20 @@ def start_scan():
     global scanner
     if not scanner.is_scanning:
         import threading
-        t = threading.Thread(target=scanner.scan)
+
+        raw_scan_paths = request.values.getlist("scan_path")
+        scan_paths = []
+        for item in raw_scan_paths:
+            scan_paths.extend([path.strip() for path in item.split(",") if path.strip()])
+
+        try:
+            validated_scan_paths = scanner.validate_scan_paths(scan_paths if scan_paths else None)
+        except ValueError as e:
+            return jsonify({"status": "invalid scan path", "message": str(e)}), 400
+
+        t = threading.Thread(target=scanner.scan, kwargs={"selected_paths": scan_paths or None})
         t.start()
-        return jsonify({"status": "start scanning"})
+        return jsonify({"status": "start scanning", "scan_paths": validated_scan_paths})
     return jsonify({"status": "already scanning"})
 
 
