@@ -14,7 +14,9 @@ from database import (
     delete_video_if_outdated,
     add_video,
     add_image,
+    batch_add_images,
 )
+from index_manager import rebuild_feature_index
 from models import create_tables, DatabaseSession
 from process_assets import process_images, process_video
 from search import clean_cache
@@ -167,12 +169,14 @@ class Scanner:
         path_list, features_list = process_images(list(image_batch_dict.keys()))
         if not path_list or features_list is None:
             return
+        # 批量写入数据库（单次事务，替代逐条commit）
+        batch_data = []
         for path, features in zip(path_list, features_list):
-            # 写入数据库
-            features = features.tobytes()
+            features_bytes = features.tobytes()
             modify_time, checksum = image_batch_dict[path]
-            add_image(session, path, modify_time, checksum, features)
+            batch_data.append((path, modify_time, checksum, features_bytes))
             del self.assets[path]
+        batch_add_images(session, batch_data)
         self.total_images = get_image_count(session)
 
     def scan(self, auto=False):
@@ -253,6 +257,7 @@ class Scanner:
         os.remove(self.temp_file)
         self.logger.info("扫描完成，用时%d秒" % int(time.time() - self.scan_start_time))
         clean_cache()  # 清空搜索缓存
+        rebuild_feature_index()  # 重建 FAISS 特征索引
         self.is_scanning = False
 
 

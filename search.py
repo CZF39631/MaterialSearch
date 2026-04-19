@@ -6,12 +6,12 @@ import numpy as np
 
 from config import *
 from database import (
-    get_image_id_path_features_filter_by_path_time,
     get_image_features_by_id,
     get_video_paths,
     get_frame_times_features_by_path,
     get_pexels_video_features,
 )
+from index_manager import get_feature_index
 from models import DatabaseSession, DatabaseSessionPexelsVideo
 from process_assets import match_batch, process_image, process_text
 
@@ -50,22 +50,17 @@ def search_image_by_feature(
     :return: list[dict], 搜索结果列表
     """
     t0 = time.time()
-    with DatabaseSession() as session:
-        ids, paths, features = get_image_id_path_features_filter_by_path_time(session, filter_path, start_time, end_time)
-    if len(ids) == 0:  # 没有素材，直接返回空
-        return []
-    features = np.frombuffer(b"".join(features), dtype=np.float32).reshape(len(features), -1)
-    scores = match_batch(positive_feature, negative_feature, features, positive_threshold, negative_threshold)
-    return_list = []
-    for id, path, score in zip(ids, paths, scores):
-        if not score:
-            continue
-        return_list.append({
-            "url": "api/get_image/%d" % id,
-            "path": path,
-            "score": float(score),
-        })
-    return_list = sorted(return_list, key=lambda x: x["score"], reverse=True)
+    # 使用 FeatureIndex（FAISS + 内存缓存）替代全量 DB 查询
+    index = get_feature_index()
+    results = index.search(
+        positive_feature, negative_feature,
+        positive_threshold, negative_threshold,
+        filter_path, start_time, end_time,
+    )
+    return_list = [
+        {"url": "api/get_image/%d" % id, "path": path, "score": score}
+        for id, path, score in results
+    ]
     logger.info("查询使用时间：%.2f" % (time.time() - t0))
     return return_list
 

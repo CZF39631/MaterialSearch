@@ -4,6 +4,7 @@ import threading
 
 import routes
 from config import *
+from index_manager import get_feature_index
 from scan import scanner
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,9 @@ def init():
     os.makedirs(f'{TEMP_PATH}/video_clips')
     # 初始化扫描线程
     scanner.init()
+    # 预加载特征索引（FAISS + numpy 缓存）
+    logger.info("加载特征索引...")
+    get_feature_index()
     if AUTO_SCAN:
         auto_scan_thread = threading.Thread(target=scanner.auto_scan, args=())
         auto_scan_thread.start()
