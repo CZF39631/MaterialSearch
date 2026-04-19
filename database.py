@@ -143,6 +143,23 @@ def add_image(session: Session, path: str, modify_time: datetime.datetime, check
     session.commit()
 
 
+def batch_add_images(session: Session, image_data_list: list):
+    """
+    批量添加图片到数据库
+    :param session: Session, 数据库session
+    :param image_data_list: list, [(path, modify_time, checksum, features_bytes), ...] 元组列表
+    """
+    if not image_data_list:
+        return
+    logger.info(f"批量新增 {len(image_data_list)} 个文件")
+    image_objects = (
+        Image(path=path, modify_time=modify_time, features=features, checksum=checksum)
+        for path, modify_time, checksum, features in image_data_list
+    )
+    session.bulk_save_objects(image_objects)
+    session.commit()
+
+
 def add_video(session: Session, path: str, modify_time: datetime.datetime, checksum: str, frame_time_features_generator):
     """
     将处理后的视频数据入库
