@@ -195,6 +195,7 @@ class FeatureIndex:
         else:
             positive_scores = features @ positive_feature.T
 
+        negative_scores = None
         if negative_feature is not None:
             negative_scores = features @ negative_feature.T
 
@@ -202,7 +203,10 @@ class FeatureIndex:
         if negative_feature is not None:
             scores = np.where(negative_scores > negative_threshold / 100, 0, scores)
 
-        return scores.squeeze(-1)
+        # positive_feature 为 None 时 scores 是一维 (n,)
+        # 正常矩阵乘法时 scores 通常是二维 (n, 1)
+        # 统一打平成一维，兼容两种情况
+        return np.asarray(scores).reshape(-1)
 
 
 # 模块级单例
