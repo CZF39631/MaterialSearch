@@ -1,6 +1,6 @@
 import os
 
-from sqlalchemy import BINARY, Column, DateTime, Integer, String
+from sqlalchemy import BINARY, Column, DateTime, Integer, String, event, text
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
@@ -18,6 +18,18 @@ engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False}
 )
+
+
+# SQLite 性能优化：WAL模式 + 缓存
+@event.listens_for(engine, "connect")
+def _set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA journal_mode=WAL")
+    cursor.execute("PRAGMA synchronous=NORMAL")
+    cursor.execute("PRAGMA cache_size=-64000")  # 64MB缓存
+    cursor.close()
+
+
 DatabaseSession = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # PexelsVideo数据库
@@ -66,3 +78,10 @@ class PexelsVideo(BaseModelPexelsVideo):
     thumbnail_loc = Column(String(256))  # 视频缩略图链接
     content_loc = Column(String(256))  # 视频链接
     thumbnail_feature = Column(BINARY)  # 视频缩略图特征
+
+
+class ScanMeta(BaseModel):
+    """扫描元数据表，用于追踪索引版本"""
+    __tablename__ = "scan_meta"
+    key = Column(String(64), primary_key=True)
+    value = Column(String(256))
