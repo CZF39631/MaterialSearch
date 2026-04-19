@@ -22,7 +22,21 @@ def get_project_root() -> Path:
 
 PROJECT_ROOT = get_project_root()
 
-BACKEND_URL = "http://127.0.0.1:8085"
+
+def load_env_config():
+    """加载 .env 配置"""
+    env_file = PROJECT_ROOT / '.env'
+    if env_file.exists():
+        from dotenv import load_dotenv
+        load_dotenv(env_file)
+    
+    host = os.getenv('HOST', '127.0.0.1')
+    port = int(os.getenv('PORT', 8085))
+    return host, port
+
+
+HOST, PORT = load_env_config()
+BACKEND_URL = f"http://{HOST}:{PORT}"
 BACKEND_HEALTH_URL = f"{BACKEND_URL}/time"
 BACKEND_LOG = PROJECT_ROOT / "tmp" / "tray_backend.log"
 CREATE_NO_WINDOW = 0x08000000
