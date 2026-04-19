@@ -6,13 +6,6 @@ Search local photos and videos through natural language.
 
 Online Demo：https://chn-lee-yumi.github.io/MaterialSearchWebDemo/
 
-Some parts of the source code in this repository have been intentionally obfuscated.
-This decision was made in response to previous incidents where individuals maliciously removed or altered copyright and attribution information, resulting in negative consequences.
-The obfuscation is meant solely to protect authorship and legal integrity, and does not restrict legitimate use under the GNU General Public License v3.0 (GPLv3).
-
-We kindly ask users to respect the original authorship and retain all relevant notices.
-
-If you’ve made any useful changes to the code (bug fixes, new features, etc.), please consider contributing them back via a pull request — so the whole community can benefit!
 
 ## Features
 
